@@ -51,7 +51,7 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
     try {
       const res = await fetch(`${API_URL}/growth-stages`);
       const data = await res.json();
-      setStages(data);
+      setStages(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }

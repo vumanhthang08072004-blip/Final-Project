@@ -32,9 +32,14 @@ export default function GrowthStageSelector() {
     try {
       const res = await fetch(`${API_URL}/growth-stages`);
       const data = await res.json();
-      setStages(data);
-      const active = data.find((s: GrowthStage) => s.isActive);
-      if (active) setActiveStageId(active.id);
+      if (Array.isArray(data)) {
+        setStages(data);
+        const active = data.find((s: GrowthStage) => s.isActive);
+        if (active) setActiveStageId(active.id);
+      } else {
+        console.warn('Expected array from /growth-stages, got:', data);
+        setStages([]);
+      }
     } catch (err) {
       console.error('Failed to fetch growth stages', err);
     } finally {
