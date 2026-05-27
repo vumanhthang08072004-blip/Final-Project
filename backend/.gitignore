@@ -1,0 +1,10 @@
+# Bỏ qua node_modules của frontend nếu nó nằm ở thư mục con
+**/node_modules/
+
+# Bỏ qua môi trường ảo venv của backend
+**/venv/
+**/.venv/
+
+# Các file log hoặc file hệ thống không cần thiết
+.DS_Store
+Thumbs.db

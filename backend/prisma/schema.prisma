@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SensorData {
+  id             String   @id @default(uuid())
+  deviceId       String   @default("ESP32_Thang")
+  soilMoisture   Float    // Percentage (0-100) mapped from "soil"
+  airHumidity    Float    // Mapped from "hum"
+  airTemperature Float    // Mapped from "temp"
+  lightIntensity Float    // Mapped from "lux"
+  lightDetect    Boolean  // Mapped from "light_detect"
+  airPressure    Float?   // Atmospheric pressure (hPa), mapped from "pres"
+  timestamp      DateTime @default(now()) // Can parse "time" or use now()
+
+  @@index([timestamp(sort: Desc)])
+}
+
+model WeatherData {
+  id              String   @id @default(uuid())
+  date            DateTime // Target forecast date
+  rainProbability Float
+  rainVolume      Float
+  avgTemp         Float
+  isForecast      Boolean  @default(true) // Distinguishes actual vs forecast data
+  createdAt       DateTime @default(now())
+
+  @@index([date(sort: Asc)])
+}
+
+model Predictions {
+  id              String   @id @default(uuid())
+  forecastDate    DateTime // The specific date in the future
+  predictedValue  Float    // E.g., moisture, temp, etc
+  confidenceScore Float    // Metric from 0.0 to 1.0 (or percentage)
+  createdAt       DateTime @default(now())
+
+  @@index([forecastDate(sort: Asc)])
+}
+
+model GrowthStage {
+  id               String   @id @default(uuid())
+  name             String   // Tên giai đoạn
+  description      String?  // Mô tả
+  
+  tempMin          Float?
+  tempMax          Float?
+  
+  moistureMin      Float?
+  moistureMax      Float?
+  
+  lightMin         Float?
+  lightMax         Float?
+  
+  nitrogenRatio    Float?   // Tỉ lệ N
+  phosphorusRatio  Float?   // Tỉ lệ P
+  potassiumRatio   Float?   // Tỉ lệ K
+  fertilizerAmount String?  // Liều lượng phân bón
+  
+  isActive         Boolean  @default(false)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model PumpState {
+  id        Int      @id @default(1)
+  isAuto    Boolean  @default(true)
+  isOn      Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
