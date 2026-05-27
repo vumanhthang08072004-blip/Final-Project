@@ -9,14 +9,18 @@ async function bootstrap() {
   app.enableCors();
 
   // Connect Microservice (MQTT) matching your ESP32 broker
+  const mqttUrl = process.env.MQTT_URL || 'mqtt://broker.hivemq.com:1883';
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
     options: {
-      url: 'mqtt://broker.hivemq.com:1883',
+      url: mqttUrl,
     },
   });
 
   await app.startAllMicroservices();
-  await app.listen(3001);
+  
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
 }
 bootstrap();

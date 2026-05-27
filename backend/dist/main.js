@@ -6,14 +6,17 @@ const microservices_1 = require("@nestjs/microservices");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors();
+    const mqttUrl = process.env.MQTT_URL || 'mqtt://broker.hivemq.com:1883';
     app.connectMicroservice({
         transport: microservices_1.Transport.MQTT,
         options: {
-            url: 'mqtt://broker.hivemq.com:1883',
+            url: mqttUrl,
         },
     });
     await app.startAllMicroservices();
-    await app.listen(3001);
+    const port = process.env.PORT || 3001;
+    await app.listen(port);
+    console.log(`Application is running on: http://localhost:${port}`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Leaf, Thermometer, Activity, Sun, Beaker, Settings2 } from 'lucide-react';
 import GrowthStageManagerModal from './GrowthStageManagerModal';
+import { API_URL } from './config';
 
 interface GrowthStage {
   id: string;
@@ -29,7 +30,7 @@ export default function GrowthStageSelector() {
 
   const fetchStages = async () => {
     try {
-      const res = await fetch('http://localhost:3001/growth-stages');
+      const res = await fetch(`${API_URL}/growth-stages`);
       const data = await res.json();
       setStages(data);
       const active = data.find((s: GrowthStage) => s.isActive);
@@ -48,7 +49,7 @@ export default function GrowthStageSelector() {
   const handleActivate = async (id: string) => {
     try {
       setLoading(true);
-      await fetch(`http://localhost:3001/growth-stages/${id}/activate`, {
+      await fetch(`${API_URL}/growth-stages/${id}/activate`, {
         method: 'PUT',
       });
       await fetchStages();

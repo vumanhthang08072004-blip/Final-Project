@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Edit2, Trash2, Plus, Save } from 'lucide-react';
+import { API_URL } from './config';
 
 interface GrowthStage {
   id?: string;
@@ -48,7 +49,7 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
 
   const fetchStages = async () => {
     try {
-      const res = await fetch('http://localhost:3001/growth-stages');
+      const res = await fetch(`${API_URL}/growth-stages`);
       const data = await res.json();
       setStages(data);
     } catch (err) {
@@ -65,7 +66,7 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc chắn muốn xoá chế độ này?')) return;
     try {
-      await fetch(`http://localhost:3001/growth-stages/${id}`, { method: 'DELETE' });
+      await fetch(`${API_URL}/growth-stages/${id}`, { method: 'DELETE' });
       fetchStages();
       onRefresh();
     } catch (err) {
@@ -95,14 +96,14 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
     try {
       if (editingStage.id) {
         // Update
-        await fetch(`http://localhost:3001/growth-stages/${editingStage.id}`, {
+        await fetch(`${API_URL}/growth-stages/${editingStage.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
         // Create
-        await fetch(`http://localhost:3001/growth-stages`, {
+        await fetch(`${API_URL}/growth-stages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

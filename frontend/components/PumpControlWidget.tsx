@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Settings, Power } from 'lucide-react';
+import { API_URL } from './config';
 
 interface PumpState {
   id: number;
@@ -16,7 +17,7 @@ export default function PumpControlWidget() {
 
   const fetchPumpState = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/pump/state');
+      const res = await fetch(`${API_URL}/api/pump/state`);
       const data = await res.json();
       setPumpState(data);
     } catch (err) {
@@ -36,7 +37,7 @@ export default function PumpControlWidget() {
     if (!pumpState) return;
     setIsToggling(true);
     try {
-      await fetch('http://localhost:3001/api/pump/mode', {
+      await fetch(`${API_URL}/api/pump/mode`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAuto: !pumpState.isAuto }),
@@ -54,7 +55,7 @@ export default function PumpControlWidget() {
     setIsToggling(true);
     try {
       const targetState = !pumpState.isOn;
-      await fetch('http://localhost:3001/api/pump/toggle', {
+      await fetch(`${API_URL}/api/pump/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isOn: targetState }),

@@ -7,6 +7,7 @@ import SmartAdviceWidget from '../components/SmartAdviceWidget';
 import GrowthStageSelector from '../components/GrowthStageSelector';
 import PumpControlWidget from '../components/PumpControlWidget';
 import { AlertCircle } from 'lucide-react';
+import { API_URL } from '../components/config';
 
 export default function DashboardPage() {
   const [currentData, setCurrentData] = useState({
@@ -41,7 +42,7 @@ export default function DashboardPage() {
     async function fetchDashboardData() {
       try {
         // Fetch current sensor reading
-        const sensorRes = await fetch('http://localhost:3001/api/sensor-data/latest');
+        const sensorRes = await fetch(`${API_URL}/api/sensor-data/latest`);
         const sensorData = await sensorRes.json();
         
         if (sensorData && sensorData.length > 0) {
@@ -49,14 +50,14 @@ export default function DashboardPage() {
         }
 
         // Fetch predictions
-        const predRes = await fetch('http://localhost:3001/api/prediction/latest');
+        const predRes = await fetch(`${API_URL}/api/prediction/latest`);
         const predictionData = await predRes.json();
 
         // Map predictions to chart format
         // The Chart needs { time, soilMoisture, airHumidity, predictedMoisture }
         
         // History Data (Actuals)
-        const histRes = await fetch('http://localhost:3001/api/sensor-data/history');
+        const histRes = await fetch(`${API_URL}/api/sensor-data/history`);
         const historyData = await histRes.json();
 
         const mappedTrends = [];

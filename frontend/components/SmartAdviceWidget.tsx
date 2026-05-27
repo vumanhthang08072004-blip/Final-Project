@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { CloudRain, Sun, AlertTriangle, Droplets } from 'lucide-react';
+import { API_URL } from './config';
 
 export default function SmartAdviceWidget() {
   const [advice, setAdvice] = useState<string>('Đang phân tích dữ liệu thời tiết Nhật Tân...');
@@ -11,7 +12,7 @@ export default function SmartAdviceWidget() {
   useEffect(() => {
     async function fetchWeatherAdvice() {
       try {
-        const response = await fetch('http://localhost:3001/api/weather/forecast');
+        const response = await fetch(`${API_URL}/api/weather/forecast`);
         if (!response.ok) throw new Error('Failed to fetch weather');
         
         const weatherData = await response.json();
