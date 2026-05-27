@@ -1,0 +1,41 @@
+services:
+  # Backend - NestJS API
+  - type: web
+    name: Final-Project
+    runtime: node
+    region: singapore
+    branch: main
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build && npx prisma generate && npx prisma db push
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smart-irrigation-db
+          property: connectionString
+      - key: MQTT_URL
+        value: mqtt://broker.hivemq.com:1883
+      - key: ACCUWEATHER_API_KEY
+        sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+
+  # Frontend - Next.js
+  - type: web
+    name: Final-Project-Frontend
+    runtime: node
+    region: singapore
+    branch: main
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://final-project-zt8m.onrender.com
+
+databases:
+  - name: smart-irrigation-db
+    region: singapore
+    plan: free
