@@ -15,7 +15,9 @@ export default function DashboardPage() {
     airHumidity: 0,
     airTemperature: 0,
     lightIntensity: 0,
-    lightDetect: true,
+    nitrogen: 0,
+    phosphorus: 0,
+    potassium: 0,
     timestamp: '',
   });
 
