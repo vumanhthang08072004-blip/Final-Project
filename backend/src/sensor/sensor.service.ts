@@ -9,9 +9,11 @@ export interface CreateSensorDataDto {
   temp: number;
   hum: number;
   lux: number;
-  light_detect: boolean;
   soil: number;
   pres?: number; // Atmospheric pressure (hPa) from BME280
+  nitrogen?: number;   // Nồng độ N (mg/kg) từ cảm biến NPK RS485
+  phosphorus?: number; // Nồng độ P (mg/kg) từ cảm biến NPK RS485
+  potassium?: number;  // Nồng độ K (mg/kg) từ cảm biến NPK RS485
 }
 
 @Injectable()
@@ -44,8 +46,10 @@ export class SensorService {
         airHumidity: data.hum,
         airTemperature: data.temp,
         lightIntensity: data.lux,
-        lightDetect: data.light_detect,
         airPressure: data.pres ?? null,
+        nitrogen: data.nitrogen ?? null,
+        phosphorus: data.phosphorus ?? null,
+        potassium: data.potassium ?? null,
         timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
       },
     });

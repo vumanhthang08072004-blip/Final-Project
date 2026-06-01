@@ -13,9 +13,11 @@ model SensorData {
   soilMoisture   Float    // Percentage (0-100) mapped from "soil"
   airHumidity    Float    // Mapped from "hum"
   airTemperature Float    // Mapped from "temp"
-  lightIntensity Float    // Mapped from "lux"
-  lightDetect    Boolean  // Mapped from "light_detect"
+  lightIntensity Float    // Mapped from "lux" (BH1750 sensor)
   airPressure    Float?   // Atmospheric pressure (hPa), mapped from "pres"
+  nitrogen       Float?   // Nồng độ N (mg/kg) từ cảm biến NPK RS485
+  phosphorus     Float?   // Nồng độ P (mg/kg) từ cảm biến NPK RS485
+  potassium      Float?   // Nồng độ K (mg/kg) từ cảm biến NPK RS485
   timestamp      DateTime @default(now()) // Can parse "time" or use now()
 
   @@index([timestamp(sort: Desc)])
