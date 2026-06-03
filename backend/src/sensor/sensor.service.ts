@@ -30,6 +30,12 @@ export class SensorService {
    * Save payload to DB from MQTT or HTTP
    * @param data JSON from ESP32
    */
+  // Soil moisture sensor calibration (capacitive sensor v1.2)
+  // dryValue  = ADC reading in dry air   → 0 %
+  // wetValue  = ADC reading in water      → 100 %
+  private static readonly SOIL_DRY_VALUE = 2627;
+  private static readonly SOIL_WET_VALUE = 884;
+
   async recordData(data: CreateSensorDataDto, deviceId: string = 'ESP32_Thang') {
     this.logger.log(`Received sensor reading from ${deviceId} at ${data.time}`);
 
@@ -38,11 +44,23 @@ export class SensorService {
     const timestampStr = data.time.replace(' ', 'T') + '+07:00';
     const timestamp = new Date(timestampStr);
 
+    // --- Soil moisture: convert raw ADC → calibrated percentage ---
+    const rawSoil = data.soil;
+    const soilMoistureRaw =
+      ((SensorService.SOIL_DRY_VALUE - rawSoil) * 100) /
+      (SensorService.SOIL_DRY_VALUE - SensorService.SOIL_WET_VALUE);
+    // Clamp to [0, 100] to prevent out-of-range values
+    const soilMoisture = Math.min(100, Math.max(0, soilMoistureRaw));
+
+    this.logger.log(
+      `Soil moisture: raw ADC=${rawSoil} → ${soilMoisture.toFixed(1)}%`,
+    );
+
     // Create DB record, mapping the payload fields to Prisma fields
     const record = await this.prisma.sensorData.create({
       data: {
         deviceId: deviceId,
-        soilMoisture: data.soil,
+        soilMoisture: soilMoisture,
         airHumidity: data.hum,
         airTemperature: data.temp,
         lightIntensity: data.lux,
@@ -63,7 +81,7 @@ export class SensorService {
         where: { isActive: true },
       });
       if (activeStage) {
-        this.evaluateGrowthStageWarnings(data, activeStage);
+        this.evaluateGrowthStageWarnings(data, activeStage, soilMoisture);
       }
     } catch (e) {
       this.logger.error('Error evaluating growth stage warnings: ' + e.message);
@@ -72,7 +90,7 @@ export class SensorService {
     return record;
   }
 
-  private evaluateGrowthStageWarnings(data: CreateSensorDataDto, stage: any) {
+  private evaluateGrowthStageWarnings(data: CreateSensorDataDto, stage: any, soilMoisture: number) {
     let shouldTurnOnPump = false;
 
     if (stage.tempMin !== null && data.temp < stage.tempMin) {
@@ -83,12 +101,12 @@ export class SensorService {
       shouldTurnOnPump = true;
     }
 
-    if (stage.moistureMin !== null && data.soil < stage.moistureMin) {
-      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${data.soil}%) dưới mức yêu cầu. Ngưỡng: >= ${stage.moistureMin}% (${stage.name})`);
+    if (stage.moistureMin !== null && soilMoisture < stage.moistureMin) {
+      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${soilMoisture.toFixed(1)}%) dưới mức yêu cầu. Ngưỡng: >= ${stage.moistureMin}% (${stage.name})`);
       shouldTurnOnPump = true;
     }
-    if (stage.moistureMax !== null && data.soil > stage.moistureMax) {
-      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${data.soil}%) qúa cao. Ngưỡng: <= ${stage.moistureMax}% (${stage.name})`);
+    if (stage.moistureMax !== null && soilMoisture > stage.moistureMax) {
+      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${soilMoisture.toFixed(1)}%) qúa cao. Ngưỡng: <= ${stage.moistureMax}% (${stage.name})`);
     }
 
     if (stage.lightMin !== null && data.lux < stage.lightMin) {
