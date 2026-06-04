@@ -21,24 +21,18 @@ export default function DashboardPage() {
     timestamp: '',
   });
 
-  const [displayTime, setDisplayTime] = useState<Date | null>(null);
+  const [displayTime, setDisplayTime] = useState<Date>(new Date());
   const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hiệu ứng "đồng hồ chạy từng giây" đồng bộ từ ESP32
+  // Đồng hồ thời gian thực - chạy liên tục bằng giờ hệ thống trình duyệt
   useEffect(() => {
-    if (!currentData.timestamp) return;
-    
-    // Khởi tạo thời gian hiển thị bằng thời gian của ESP32
-    setDisplayTime(new Date(currentData.timestamp));
-    
-    // Mỗi giây cộng thêm 1000ms
     const interval = setInterval(() => {
-      setDisplayTime(prev => prev ? new Date(prev.getTime() + 1000) : null);
+      setDisplayTime(new Date());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [currentData.timestamp]);
+  }, []);
 
   useEffect(() => {
     async function fetchDashboardData() {
