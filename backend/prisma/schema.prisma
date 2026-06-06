@@ -76,3 +76,13 @@ model PumpState {
   isOn      Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // bcrypt hash - mật khẩu được mã hóa
+  fullName  String?
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

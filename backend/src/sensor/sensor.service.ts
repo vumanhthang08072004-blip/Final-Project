@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; 
+import { PrismaService } from '../prisma/prisma.service';
 import { PredictionService } from '../prediction/prediction.service';
 import { PumpService } from '../pump/pump.service';
 
@@ -24,17 +24,17 @@ export class SensorService {
     private prisma: PrismaService,
     private predictionService: PredictionService,
     private pumpService: PumpService,
-  ) {}
+  ) { }
 
   /**
    * Save payload to DB from MQTT or HTTP
    * @param data JSON from ESP32
    */
-  // Soil moisture sensor calibration (capacitive sensor v1.2)
-  // dryValue  = ADC reading in dry air   → 0 %
-  // wetValue  = ADC reading in water      → 100 %
-  private static readonly SOIL_DRY_VALUE = 2627;
-  private static readonly SOIL_WET_VALUE = 884;
+  // Soil moisture sensor calibration
+  // ADC 2627 → 0 % (dry)
+  // ADC 884  → 100 % (wet)
+  private static readonly SOIL_ADC_DRY = 2627;  // 0 %
+  private static readonly SOIL_ADC_WET = 884;   // 100 %
 
   async recordData(data: CreateSensorDataDto, deviceId: string = 'ESP32_Thang') {
     this.logger.log(`Received sensor reading from ${deviceId} at ${data.time}`);
@@ -47,8 +47,8 @@ export class SensorService {
     // --- Soil moisture: convert raw ADC → calibrated percentage ---
     const rawSoil = data.soil;
     const soilMoistureRaw =
-      ((SensorService.SOIL_DRY_VALUE - rawSoil) * 100) /
-      (SensorService.SOIL_DRY_VALUE - SensorService.SOIL_WET_VALUE);
+      ((SensorService.SOIL_ADC_DRY - rawSoil) * 100) /
+      (SensorService.SOIL_ADC_DRY - SensorService.SOIL_ADC_WET);
     // Clamp to [0, 100] to prevent out-of-range values
     const soilMoisture = Math.min(100, Math.max(0, soilMoistureRaw));
 
@@ -135,7 +135,7 @@ export class SensorService {
 
     return this.prisma.sensorData.findMany({
       where: { timestamp: { gte: date } },
-      orderBy: { timestamp: 'asc' }, 
+      orderBy: { timestamp: 'asc' },
     });
   }
 }

@@ -6,11 +6,13 @@ import { WeatherModule } from './weather/weather.module';
 import { PredictionModule } from './prediction/prediction.module';
 import { GrowthStageModule } from './growth-stage/growth-stage.module';
 import { PumpModule } from './pump/pump.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
+    AuthModule,
     SensorModule,
     WeatherModule,
     PredictionModule,
@@ -19,3 +21,4 @@ import { PumpModule } from './pump/pump.module';
   ],
 })
 export class AppModule {}
+
