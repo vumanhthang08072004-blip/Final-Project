@@ -6,10 +6,13 @@ import HistoricalCharts from '../components/HistoricalCharts';
 import SmartAdviceWidget from '../components/SmartAdviceWidget';
 import GrowthStageSelector from '../components/GrowthStageSelector';
 import PumpControlWidget from '../components/PumpControlWidget';
-import { AlertCircle } from 'lucide-react';
+import AuthGuard from '../components/AuthGuard';
+import { useAuth } from '../components/AuthContext';
+import { AlertCircle, LogOut } from 'lucide-react';
 import { API_URL } from '../components/config';
 
 export default function DashboardPage() {
+  const { logout } = useAuth();
   const [currentData, setCurrentData] = useState({
     soilMoisture: 0,
     airHumidity: 0,
@@ -112,6 +115,7 @@ export default function DashboardPage() {
   const needsSmartAlert = currentData.soilMoisture < 30 && currentData.soilMoisture > 0;
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-green-50 p-4 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
         
@@ -122,20 +126,30 @@ export default function DashboardPage() {
               HỆ THỐNG GIÁM SÁT CHẤT LƯỢNG VƯỜN ĐÀO NHẬT TÂN
             </h1>
           </div>
-          <div className="mt-4 md:mt-0 px-4 py-2 bg-emerald-800 rounded-lg shadow-inner flex flex-col md:items-end">
-            <div className="flex items-center">
-              <span className="text-sm font-bold opacity-80">Live Data</span>
-              {isLoading && <span className="ml-2 animate-pulse text-emerald-300">...loading</span>}
-            </div>
-            {displayTime && (
-              <div className="text-xs text-emerald-200 mt-1 font-medium flex items-center">
-                <span className="mr-1">⏱</span> 
-                {displayTime.toLocaleString('vi-VN', { 
-                  hour: '2-digit', minute: '2-digit', second: '2-digit',
-                  day: '2-digit', month: '2-digit', year: 'numeric' 
-                })}
+          <div className="mt-4 md:mt-0 flex items-center gap-3">
+            <div className="px-4 py-2 bg-emerald-800 rounded-lg shadow-inner flex flex-col md:items-end">
+              <div className="flex items-center">
+                <span className="text-sm font-bold opacity-80">Live Data</span>
+                {isLoading && <span className="ml-2 animate-pulse text-emerald-300">...loading</span>}
               </div>
-            )}
+              {displayTime && (
+                <div className="text-xs text-emerald-200 mt-1 font-medium flex items-center">
+                  <span className="mr-1">⏱</span> 
+                  {displayTime.toLocaleString('vi-VN', { 
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    day: '2-digit', month: '2-digit', year: 'numeric' 
+                  })}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-800/80 hover:bg-red-600 text-emerald-200 hover:text-white rounded-lg text-sm font-semibold transition-all duration-200 border border-emerald-600/50 hover:border-red-500"
+              title="Đăng xuất"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden md:inline">Đăng xuất</span>
+            </button>
           </div>
         </header>
 
@@ -190,6 +204,7 @@ export default function DashboardPage() {
         
       </div>
     </div>
+    </AuthGuard>
   );
 }
 
