@@ -138,4 +138,20 @@ export class SensorService {
       orderBy: { timestamp: 'asc' },
     });
   }
+
+  async cleanupInvalidData() {
+    this.logger.log('Cleaning up invalid sensor data (soilMoisture > 100)');
+    const deleteResult = await this.prisma.sensorData.deleteMany({
+      where: {
+        soilMoisture: {
+          gt: 100,
+        },
+      },
+    });
+    this.logger.log(`Deleted ${deleteResult.count} invalid records`);
+    return {
+      message: 'Cleanup successful',
+      deletedCount: deleteResult.count,
+    };
+  }
 }
