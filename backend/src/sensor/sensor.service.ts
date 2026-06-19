@@ -138,4 +138,20 @@ export class SensorService {
       orderBy: { timestamp: 'asc' },
     });
   }
+
+  async cleanupOldData() {
+    const targetDate = new Date("2026-06-17T11:00:00+07:00");
+    const result = await this.prisma.sensorData.deleteMany({
+      where: {
+        timestamp: {
+          lte: targetDate,
+        },
+      },
+    });
+    this.logger.log(`Cleaned up ${result.count} sensor records at or before 17-06 11:00.`);
+    return {
+      success: true,
+      message: `Deleted ${result.count} sensor records at or before 17-06 11:00.`,
+    };
+  }
 }
