@@ -59,7 +59,7 @@ export default function DashboardPage() {
         const histRes = await fetch(`${API_URL}/api/sensor-data/history`);
         const historyData = await histRes.json();
 
-        const mappedTrends = [];
+        const mappedTrends: any[] = [];
         
         // Push actual past records (Aggregate by Hour to reduce noise but retain line shape)
         if (historyData && historyData.length > 0) {
@@ -88,20 +88,37 @@ export default function DashboardPage() {
           }
         }
 
-        // Push future predicted records
+        // Push future and past predicted records (Overlay or append)
         if (predictionData && predictionData.length > 0) {
           predictionData.forEach((pred: any) => {
             const dateObj = new Date(pred.forecastDate);
             const timeStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + 
-                            dateObj.getHours().toString().padStart(2, '0') + ':' + 
-                            dateObj.getMinutes().toString().padStart(2, '0');
-            mappedTrends.push({
-              time: timeStr,
-              soilMoisture: null,
-              predictedMoisture: pred.predictedValue,
-            });
+                            dateObj.getHours().toString().padStart(2, '0') + ':00';
+            
+            const existing = mappedTrends.find(t => t.time === timeStr);
+            if (existing) {
+              existing.predictedMoisture = pred.predictedValue;
+            } else {
+              mappedTrends.push({
+                time: timeStr,
+                soilMoisture: null,
+                airHumidity: null,
+                predictedMoisture: pred.predictedValue,
+              });
+            }
           });
         }
+
+        // Sort chronologically by parsing the custom time string format
+        mappedTrends.sort((a, b) => {
+          const parseDate = (str: string) => {
+            const [datePart, timePart] = str.split(' ');
+            const [day, month] = datePart.split('/');
+            const [hour] = timePart.split(':');
+            return new Date(new Date().getFullYear(), parseInt(month) - 1, parseInt(day), parseInt(hour));
+          };
+          return parseDate(a.time).getTime() - parseDate(b.time).getTime();
+        });
 
         setHistoricalTrends(mappedTrends);
       } catch (error) {
