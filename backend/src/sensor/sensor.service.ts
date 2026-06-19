@@ -3,9 +3,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PredictionService } from '../prediction/prediction.service';
 import { PumpService } from '../pump/pump.service';
 
-// Match the JSON payload given by the ESP32 code
+// Match the JSON payload given by the ESP32 MQTTS firmware
 export interface CreateSensorDataDto {
-  time: string;
+  device_id?: string;  // ID thiết bị ESP32 ("ESP32_Peach_Node")
+  timestamp: number;   // Unix Epoch (giây) từ RTC DS3231
   temp: number;
   hum: number;
   lux: number;
@@ -36,13 +37,12 @@ export class SensorService {
   private static readonly SOIL_ADC_DRY = 2627;  // 0 %
   private static readonly SOIL_ADC_WET = 884;   // 100 %
 
-  async recordData(data: CreateSensorDataDto, deviceId: string = 'ESP32_Thang') {
-    this.logger.log(`Received sensor reading from ${deviceId} at ${data.time}`);
+  async recordData(data: CreateSensorDataDto, deviceId: string = 'ESP32_Peach_Node') {
+    this.logger.log(`Received sensor reading from ${deviceId} at epoch=${data.timestamp}`);
 
-    // Parse the ESP time string "YYYY-MM-DD HH:MM:SS" into ISO 8601
-    // Appending +07:00 assuming the ESP32 is synced to Vietnam NTP (+7)
-    const timestampStr = data.time.replace(' ', 'T') + '+07:00';
-    const timestamp = new Date(timestampStr);
+    // Chuyển đổi Unix Epoch (giây) từ RTC DS3231 thành JavaScript Date
+    // JS Date constructor nhận milliseconds, nên nhân 1000
+    const timestamp = new Date(data.timestamp * 1000);
 
     // --- Soil moisture: convert raw ADC → calibrated percentage ---
     const rawSoil = data.soil;

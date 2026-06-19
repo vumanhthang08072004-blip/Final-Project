@@ -9,14 +9,20 @@ export class PumpService implements OnModuleInit {
   private mqttClient: mqtt.MqttClient;
 
   constructor(private prisma: PrismaService) {
-    this.mqttClient = mqtt.connect('mqtt://broker.hivemq.com:1883');
+    // Kết nối MQTTS tới HiveMQ Cloud với TLS + xác thực
+    const mqttUrl = process.env.MQTT_URL || 'mqtts://xxxxxxxxxxxx.s1.eu.hivemq.cloud:8883';
+    this.mqttClient = mqtt.connect(mqttUrl, {
+      username: process.env.MQTT_USER,
+      password: process.env.MQTT_PASS,
+      rejectUnauthorized: true, // Xác thực chứng chỉ TLS
+    });
     
     this.mqttClient.on('connect', () => {
-      this.logger.log('Native MQTT Client connected to HiveMQ for Pump Control');
+      this.logger.log('MQTTS Client connected to HiveMQ Cloud for Pump Control');
     });
 
     this.mqttClient.on('error', (err) => {
-      this.logger.error('Native MQTT Client error: ' + err.message);
+      this.logger.error('MQTTS Client error: ' + err.message);
     });
   }
 
@@ -78,9 +84,9 @@ export class PumpService implements OnModuleInit {
     
     this.mqttClient.publish(this.MQTT_TOPIC, payload, { qos: 0 }, (error) => {
       if (error) {
-        this.logger.error(`Failed to publish RAW MQTT -> ${this.MQTT_TOPIC}: ${payload}`, error);
+        this.logger.error(`Failed to publish MQTTS -> ${this.MQTT_TOPIC}: ${payload}`, error);
       } else {
-        this.logger.log(`Published RAW MQTT -> ${this.MQTT_TOPIC}: ${payload}`);
+        this.logger.log(`Published MQTTS -> ${this.MQTT_TOPIC}: ${payload}`);
       }
     });
 

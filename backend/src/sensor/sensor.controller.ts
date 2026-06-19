@@ -8,11 +8,11 @@ export class SensorController {
 
   constructor(private readonly sensorService: SensorService) {}
 
-  // 1. MQTT Handler (For ESP32 via HiveMQ)
-  @MessagePattern('bkhn/thang/sensors')
+  // 1. MQTTS Handler (For ESP32 via HiveMQ Cloud)
+  @MessagePattern('api/sensor-data')
   async handleMqttSensorData(@Payload() data: CreateSensorDataDto) {
-    this.logger.log(`MQTT Received Payload: ${JSON.stringify(data)}`);
-    return this.sensorService.recordData(data, 'ESP32_Thang_MQTT');
+    this.logger.log(`MQTTS Received Payload: ${JSON.stringify(data)}`);
+    return this.sensorService.recordData(data, data.device_id || 'ESP32_Peach_Node');
   }
 
   // 2. HTTP POST Handler (Optional, for debugging with Postman)

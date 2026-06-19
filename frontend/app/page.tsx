@@ -173,7 +173,7 @@ export default function DashboardPage() {
             <section>
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
                 <span className="bg-lime-500 w-2 h-8 rounded-full mr-3 inline-block"></span>
-                Thông số trực tiếp (ESP32 via MQTT)
+                Thông số trực tiếp (ESP32 via MQTTS)
               </h2>
               <MonitoringCards data={currentData} />
             </section>
