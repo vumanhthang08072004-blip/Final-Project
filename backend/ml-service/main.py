@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 
 # ─── Config ────────────────────────────────────────────────────────────────────
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "modelv3.h5")
+MODEL_PATH = os.path.join(MODEL_DIR, "modelv3.tflite")
 SCALER_PATH = os.path.join(MODEL_DIR, "scaler_dao_v3.pkl")
 
 TIME_STEPS = 20
@@ -26,29 +26,41 @@ NUM_FEATURES = 4  # temp, humd, soil, lum
 SOIL_MOISTURE_INDEX = 2
 
 # ─── Global model references ──────────────────────────────────────────────────
-model = None
+interpreter = None
+input_details = None
+output_details = None
 scaler = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and scaler on startup."""
-    global model, scaler
+    global interpreter, input_details, output_details, scaler
 
-    # Lazy import tensorflow to speed up startup logging
-    import tensorflow as tf
-
-    print("[*] Loading LSTM model and scaler...")
+    print("[*] Loading TFLite model and scaler...")
 
     if not os.path.exists(MODEL_PATH):
         raise RuntimeError(f"Model file not found: {MODEL_PATH}")
     if not os.path.exists(SCALER_PATH):
         raise RuntimeError(f"Scaler file not found: {SCALER_PATH}")
 
-    model = tf.keras.models.load_model(MODEL_PATH)
+    # Load TFLite interpreter with fallback
+    try:
+        import tflite_runtime.interpreter as tflite
+    except ImportError:
+        from tensorflow import lite as tflite
+
+    # Read model bytes first to bypass Unicode path issues in native C++ TFLite reader on Windows
+    with open(MODEL_PATH, 'rb') as f:
+        model_content = f.read()
+    interpreter = tflite.Interpreter(model_content=model_content)
+    interpreter.allocate_tensors()
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
     scaler = joblib.load(SCALER_PATH)
 
-    print(f"[OK] LSTM Model loaded successfully. Input shape: {model.input_shape}")
+    print(f"[OK] LSTM TFLite Model loaded successfully. Input shape: {input_details[0]['shape']}")
     print(f"[OK] Scaler features: {scaler.n_features_in_}")
     print(f"[OK] Scaler data_min: {scaler.data_min_}")
     print(f"[OK] Scaler data_max: {scaler.data_max_}")
@@ -94,8 +106,8 @@ async def health_check():
     """Check if the service is running and model is loaded."""
     return {
         "status": "healthy",
-        "model_type": "LSTM",
-        "model_loaded": model is not None,
+        "model_type": "LSTM_TFLite",
+        "model_loaded": interpreter is not None,
         "scaler_loaded": scaler is not None,
     }
 
@@ -108,7 +120,7 @@ async def predict(request: PredictionRequest):
     Expects exactly 20 timesteps, each with 4 features:
     [temp, humd, soil, lum]
     """
-    if model is None or scaler is None:
+    if interpreter is None or scaler is None:
         raise HTTPException(status_code=503, detail="Model not loaded yet")
 
     if len(request.timesteps) != TIME_STEPS:
@@ -133,10 +145,12 @@ async def predict(request: PredictionRequest):
         scaled_data = scaler.transform(raw_data)
 
         # Reshape for LSTM: (1, TIME_STEPS, NUM_FEATURES) = (1, 20, 4)
-        model_input = scaled_data.reshape(1, TIME_STEPS, NUM_FEATURES)
+        model_input = scaled_data.reshape(1, TIME_STEPS, NUM_FEATURES).astype(np.float32)
 
-        # Run prediction — output is scaled (0–1)
-        scaled_prediction = model.predict(model_input, verbose=0)
+        # Run prediction using TFLite interpreter
+        interpreter.set_tensor(input_details[0]['index'], model_input)
+        interpreter.invoke()
+        scaled_prediction = interpreter.get_tensor(output_details[0]['index'])
         scaled_value = float(scaled_prediction[0][0])
 
         print(f"[*] Scaled prediction value: {scaled_value}")
