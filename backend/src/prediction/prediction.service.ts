@@ -75,8 +75,10 @@ export class PredictionService {
           }),
         );
         const val = response.data.predicted_soil_moisture;
+        const forecastDate = new Date(sensors[i].timestamp);
+        forecastDate.setMinutes(0, 0, 0);
         predictions.push({
-          forecastDate: new Date(sensors[i].timestamp),
+          forecastDate,
           predictedValue: Number(val.toFixed(2)),
           confidenceScore: 1.0,
         });
@@ -88,6 +90,7 @@ export class PredictionService {
 
     // 3. Generate future forecast for the next 15 hours
     const latestSensorTime = new Date(sensors[sensors.length - 1].timestamp);
+    latestSensorTime.setMinutes(0, 0, 0);
     const last20Sensors = sensors.slice(sensors.length - LSTM_TIME_STEPS);
     let currentTimesteps = last20Sensors.map((s) => ({
       temp: s.airTemperature,
