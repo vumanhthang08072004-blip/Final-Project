@@ -68,19 +68,14 @@ export class PredictionService {
       );
 
       const predictedMoisture = response.data.predicted_soil_moisture;
-      this.logger.log(`LSTM predicted soil moisture: ${predictedMoisture}%`);
+      this.logger.log(`LSTM predicted soil moisture (next 15m): ${predictedMoisture}%`);
 
-      // 4. Save prediction for the next hour
-      const forecastDate = new Date();
-      forecastDate.setHours(forecastDate.getHours() + 1);
-      forecastDate.setMinutes(0, 0, 0);
-
-      // Also generate multi-step predictions by rolling the window forward
-      // For single-step model, we iteratively predict and shift the window
+      // 4. Generate multi-step predictions by rolling the window forward
       await this.generateMultiStepPredictions(sensors, timesteps, predictedMoisture);
 
     } catch (error) {
-      this.logger.error(`LSTM prediction failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`LSTM prediction failed: ${message}`);
       this.logger.warn('Falling back to heuristic prediction');
       await this.fallbackHeuristicPrediction();
     }
@@ -88,7 +83,7 @@ export class PredictionService {
 
   /**
    * Generate multi-step predictions by iteratively feeding predictions back
-   * into the model. This gives us a forecast for multiple future timesteps.
+   * into the model. This gives us a forecast for multiple future 15-minute timesteps.
    */
   private async generateMultiStepPredictions(
     sensors: any[],
@@ -99,23 +94,21 @@ export class PredictionService {
     let currentTimesteps = [...initialTimesteps];
     let lastPredicted = firstPrediction;
 
-    // Get weather forecast data for future temperature/humidity estimates
-    const forecasts = await this.prisma.weatherData.findMany({
-      where: { isForecast: true },
-      orderBy: { date: 'asc' },
-    });
+    // Get the timestamp of the most recent actual sensor reading
+    const latestSensorTime = new Date(sensors[sensors.length - 1].timestamp);
 
-    const numSteps = Math.min(forecasts.length, 15); // Up to 15 days
+    const numSteps = 20; // Forecast the next 20 samples (15-minute intervals, total 5 hours)
 
     for (let i = 0; i < numSteps; i++) {
-      const forecast = forecasts[i];
+      // Forecast date incremented by 15 minutes per step
+      const forecastDate = new Date(latestSensorTime.getTime() + (i + 1) * 15 * 60 * 1000);
 
-      // Use forecast weather data combined with last prediction for next step
+      // Carry forward the weather features (temp, humd, lum) from the last known timestep
       const nextTimestep = {
-        temp: forecast.avgTemp,
-        humd: currentTimesteps[currentTimesteps.length - 1].humd, // carry forward
-        soil: lastPredicted, // Đưa kết quả dự đoán trước đó làm input cho bước tiếp
-        lum: currentTimesteps[currentTimesteps.length - 1].lum,   // carry forward
+        temp: currentTimesteps[currentTimesteps.length - 1].temp,
+        humd: currentTimesteps[currentTimesteps.length - 1].humd,
+        soil: lastPredicted, // Use the predicted value as input for the next prediction step
+        lum: currentTimesteps[currentTimesteps.length - 1].lum,
       };
 
       // Slide the window: drop oldest, add new
@@ -129,16 +122,16 @@ export class PredictionService {
           }),
         );
         lastPredicted = response.data.predicted_soil_moisture;
-      } catch {
-        // If ML service fails mid-loop, use the last known prediction
-        this.logger.warn(`ML service call failed at step ${i + 1}, using last value`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`ML service call failed at step ${i + 1}, using last value. Error: ${message}`);
       }
 
       // Confidence drops as we predict further into the future
-      const confidenceScore = Math.max(0.3, 1.0 - i * 0.05);
+      const confidenceScore = Math.max(0.3, 1.0 - i * 0.035);
 
       predictions.push({
-        forecastDate: forecast.date,
+        forecastDate,
         predictedValue: Number(lastPredicted.toFixed(2)),
         confidenceScore: Number(confidenceScore.toFixed(2)),
       });
@@ -152,7 +145,7 @@ export class PredictionService {
     }
 
     this.logger.log(
-      `Generated ${predictions.length} days of LSTM soil moisture predictions.`,
+      `Generated ${predictions.length} steps (15m interval) of LSTM soil moisture predictions.`,
     );
   }
 

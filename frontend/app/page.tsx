@@ -91,8 +91,12 @@ export default function DashboardPage() {
         // Push future predicted records
         if (predictionData && predictionData.length > 0) {
           predictionData.forEach((pred: any) => {
+            const dateObj = new Date(pred.forecastDate);
+            const timeStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + 
+                            dateObj.getHours().toString().padStart(2, '0') + ':' + 
+                            dateObj.getMinutes().toString().padStart(2, '0');
             mappedTrends.push({
-              time: new Date(pred.forecastDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+              time: timeStr,
               soilMoisture: null,
               predictedMoisture: pred.predictedValue,
             });
