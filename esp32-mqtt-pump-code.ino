@@ -97,19 +97,20 @@ void syncTime() {
   Serial.println("Dong bo RTC thanh cong!");
 }
 
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Dang ket noi MQTT...");
-    String clientId = "ESP32_Thang_" + String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
-      Serial.println("Da ket noi!");
-      client.subscribe(mqtt_topic_sub); 
-    } else {
-      Serial.print("Loi ket noi, ma loi=");
-      Serial.print(client.state());
-      Serial.println(" Thu lai sau 5 giay...");
-      delay(5000);
-    }
+unsigned long lastReconnectAttempt = 0;
+
+boolean reconnect() {
+  Serial.print("Dang ket noi MQTT...");
+  String clientId = "ESP32_Thang_" + String(random(0xffff), HEX);
+  if (client.connect(clientId.c_str())) {
+    Serial.println("Da ket noi!");
+    client.subscribe(mqtt_topic_sub); 
+    return true;
+  } else {
+    Serial.print("Loi ket noi, ma loi=");
+    Serial.print(client.state());
+    Serial.println(" Thu lai sau 5 giay...");
+    return false;
   }
 }
 
@@ -199,14 +200,22 @@ void setup() {
 }
 
 void loop() {
+  unsigned long now_ms = millis();
+
   if (!client.connected()) {
-    reconnect();
+    // Thử kết nối lại mỗi 5 giây mà không block loop
+    if (now_ms - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now_ms;
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    // Duy trì kết nối MQTT để nhận lệnh liên tục
+    client.loop();
   }
-  // Duy trì kết nối MQTT để nhận lệnh liên tục
-  client.loop();
 
   static unsigned long lastMsg = 0;
-  unsigned long now_ms = millis();
   
   if (now_ms - lastMsg > 5000) {
     lastMsg = now_ms;
@@ -228,18 +237,31 @@ void loop() {
     // Đọc giá trị NPK từ cảm biến RS485
     readAllNPK();
 
-    String payload = "{";
-    payload += "\"time\":\"" + String(timestamp) + "\",";
-    payload += "\"temp\":" + String(temp, 1) + ",";
-    payload += "\"hum\":" + String(hum, 1) + ",";
-    payload += "\"lux\":" + String(lux, 1) + ",";
-    payload += "\"soil\":" + String(soilPercent) + ",";
-    payload += "\"nitrogen\":" + String(nitrogenValue) + ",";
-    payload += "\"phosphorus\":" + String(phosphorusValue) + ",";
-    payload += "\"potassium\":" + String(potassiumValue);
-    payload += "}";
+    // --- CƠ CHẾ FALL-BACK LOCAL CONTROL ---
+    if (!client.connected()) {
+      Serial.println("MAT KET NOI MQTT -> CHUYEN SANG CHE DO LOCAL CONTROL");
+      if (soilPercent < 30) {
+        digitalWrite(PUMP_PIN, HIGH);
+        Serial.println("Offline: Da bat bom vi do am < 30%");
+      } else if (soilPercent > 60) {
+        digitalWrite(PUMP_PIN, LOW);
+        Serial.println("Offline: Da tat bom vi do am > 60%");
+      }
+    } else {
+      // Đã kết nối MQTT -> Gửi dữ liệu lên Server
+      String payload = "{";
+      payload += "\"time\":\"" + String(timestamp) + "\",";
+      payload += "\"temp\":" + String(temp, 1) + ",";
+      payload += "\"hum\":" + String(hum, 1) + ",";
+      payload += "\"lux\":" + String(lux, 1) + ",";
+      payload += "\"soil\":" + String(soilPercent) + ",";
+      payload += "\"nitrogen\":" + String(nitrogenValue) + ",";
+      payload += "\"phosphorus\":" + String(phosphorusValue) + ",";
+      payload += "\"potassium\":" + String(potassiumValue);
+      payload += "}";
 
-    client.publish(mqtt_topic_pub, payload.c_str());
-    Serial.println("Sent: " + payload);
+      client.publish(mqtt_topic_pub, payload.c_str());
+      Serial.println("Sent: " + payload);
+    }
   }
 }
