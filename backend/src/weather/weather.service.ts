@@ -77,9 +77,9 @@ export class WeatherService {
       }));
     }
 
-    // Replace all future forecasts
+    // Replace all forecasts
     await this.prisma.weatherData.deleteMany({
-      where: { date: { gte: forecastsData[0].date } },
+      where: { isForecast: true },
     });
 
     for (const data of forecastsData) {
