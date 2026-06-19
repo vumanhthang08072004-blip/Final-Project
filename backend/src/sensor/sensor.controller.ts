@@ -31,9 +31,4 @@ export class SensorController {
   async getHistory() {
     return this.sensorService.getRecentHistory('336'); // 14 days of history
   }
-
-  @Get('cleanup-old')
-  async cleanupOld() {
-    return this.sensorService.cleanupOldData();
-  }
 }
