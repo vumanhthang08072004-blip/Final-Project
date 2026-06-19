@@ -5,11 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
 
 /**
- * Default atmospheric pressure (hPa) for Nhat Tan, Hanoi area.
- * Used as fallback when sensor data doesn't include pressure readings.
- * Hanoi average sea-level pressure ≈ 1013 hPa.
+ * Number of timesteps required by the LSTM model.
+ * Must match TIME_STEPS in ml-service/main.py
  */
-const DEFAULT_PRESSURE_HPA = 1013.0;
+const LSTM_TIME_STEPS = 20;
 
 @Injectable()
 export class PredictionService {
@@ -24,26 +23,26 @@ export class PredictionService {
   }
 
   /**
-   * Predict soil moisture using the CNN model served by the FastAPI ML service.
+   * Predict soil moisture using the LSTM model served by the FastAPI ML service.
    * 
    * Flow:
-   * 1. Fetch 10 most recent sensor readings from DB
+   * 1. Fetch 20 most recent sensor readings from DB
    * 2. Send them as timesteps to the Python ML service POST /predict
    * 3. Save the predicted value into the Predictions table
    */
   @Cron(CronExpression.EVERY_HOUR)
   async predictFutureMoisture() {
-    this.logger.debug('Running CNN-based soil moisture prediction');
+    this.logger.debug('Running LSTM-based soil moisture prediction');
 
-    // 1. Get the 10 most recent sensor readings (TIME_STEPS = 10)
+    // 1. Get the 20 most recent sensor readings (TIME_STEPS = 20)
     const sensors = await this.prisma.sensorData.findMany({
       orderBy: { timestamp: 'desc' },
-      take: 10,
+      take: LSTM_TIME_STEPS,
     });
 
-    if (sensors.length < 10) {
+    if (sensors.length < LSTM_TIME_STEPS) {
       this.logger.warn(
-        `Need at least 10 sensor readings for CNN prediction, only have ${sensors.length}. Skipping.`,
+        `Need at least ${LSTM_TIME_STEPS} sensor readings for LSTM prediction, only have ${sensors.length}. Skipping.`,
       );
       return;
     }
@@ -51,12 +50,13 @@ export class PredictionService {
     // Reverse to chronological order (oldest → newest)
     sensors.reverse();
 
-    // 2. Build timesteps array for the ML service
+    // 2. Build timesteps array for the LSTM ML service
+    //    Features: [temp, humd, soil, lum] — khớp thứ tự khi training
     const timesteps = sensors.map((s) => ({
       temp: s.airTemperature,
       humd: s.airHumidity,
+      soil: s.soilMoisture,
       lum: s.lightIntensity,
-      pres: s.airPressure ?? DEFAULT_PRESSURE_HPA,
     }));
 
     try {
@@ -68,7 +68,7 @@ export class PredictionService {
       );
 
       const predictedMoisture = response.data.predicted_soil_moisture;
-      this.logger.log(`CNN predicted soil moisture: ${predictedMoisture}%`);
+      this.logger.log(`LSTM predicted soil moisture: ${predictedMoisture}%`);
 
       // 4. Save prediction for the next hour
       const forecastDate = new Date();
@@ -80,7 +80,7 @@ export class PredictionService {
       await this.generateMultiStepPredictions(sensors, timesteps, predictedMoisture);
 
     } catch (error) {
-      this.logger.error(`CNN prediction failed: ${error.message}`);
+      this.logger.error(`LSTM prediction failed: ${error.message}`);
       this.logger.warn('Falling back to heuristic prediction');
       await this.fallbackHeuristicPrediction();
     }
@@ -114,8 +114,8 @@ export class PredictionService {
       const nextTimestep = {
         temp: forecast.avgTemp,
         humd: currentTimesteps[currentTimesteps.length - 1].humd, // carry forward
-        lum: currentTimesteps[currentTimesteps.length - 1].lum,   // carry forward  
-        pres: currentTimesteps[currentTimesteps.length - 1].pres, // carry forward
+        soil: lastPredicted, // Đưa kết quả dự đoán trước đó làm input cho bước tiếp
+        lum: currentTimesteps[currentTimesteps.length - 1].lum,   // carry forward
       };
 
       // Slide the window: drop oldest, add new
@@ -144,7 +144,7 @@ export class PredictionService {
       });
     }
 
-    // Replace old predictions with new CNN-based ones
+    // Replace old predictions with new LSTM-based ones
     await this.prisma.predictions.deleteMany();
 
     for (const pred of predictions) {
@@ -152,7 +152,7 @@ export class PredictionService {
     }
 
     this.logger.log(
-      `Generated ${predictions.length} days of CNN soil moisture predictions.`,
+      `Generated ${predictions.length} days of LSTM soil moisture predictions.`,
     );
   }
 
