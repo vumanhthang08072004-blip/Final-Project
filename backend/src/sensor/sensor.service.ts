@@ -81,7 +81,7 @@ export class SensorService {
         where: { isActive: true },
       });
       if (activeStage) {
-        this.evaluateGrowthStageWarnings(data, activeStage, soilMoisture);
+        await this.evaluateGrowthStageWarnings(data, activeStage, soilMoisture);
       }
     } catch (e) {
       this.logger.error('Error evaluating growth stage warnings: ' + e.message);
@@ -90,8 +90,43 @@ export class SensorService {
     return record;
   }
 
-  private evaluateGrowthStageWarnings(data: CreateSensorDataDto, stage: any, soilMoisture: number) {
+  private async evaluateGrowthStageWarnings(data: CreateSensorDataDto, stage: any, soilMoisture: number) {
     let shouldTurnOnPump = false;
+    let blockPumpDueToWeather = false;
+
+    // --- SMART ADVICE: KIỂM TRA DỰ BÁO THỜI TIẾT ---
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    
+    try {
+      // Lấy dự báo thời tiết gần nhất cho 24h tới
+      const forecast = await this.prisma.weatherData.findFirst({
+        where: {
+          isForecast: true,
+          date: {
+            gte: now,
+            lte: tomorrow,
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (forecast) {
+        // Cảnh báo 1: Dự báo mưa to
+        if (forecast.rainProbability > 70 || forecast.rainVolume > 10) {
+          this.logger.warn(`[SMART ADVICE] Chiều/tối nay dự báo có mưa to (Xác suất: ${forecast.rainProbability}%, Lượng mưa: ${forecast.rainVolume}mm). Hệ thống tự động chặn bơm tưới để tránh ngập úng gốc cây.`);
+          blockPumpDueToWeather = true;
+        }
+        
+        // Cảnh báo 2: Nắng gắt, oi nóng
+        if (forecast.avgTemp > 35 && forecast.rainProbability < 20) {
+          this.logger.warn(`[SMART ADVICE] Hôm nay trời nắng gắt và rất oi nóng (Nhiệt độ dự báo: ${forecast.avgTemp}°C). Bà con nên có phương án tưới bù nước sớm để cây tránh mất nước.`);
+        }
+      }
+    } catch (err) {
+      this.logger.error('Lỗi truy vấn dữ liệu thời tiết: ' + err.message);
+    }
+    // ------------------------------------------------
 
     if (stage.tempMin !== null && data.temp < stage.tempMin) {
       this.logger.warn(`[CẢNH BÁO] Nhiệt độ (${data.temp}°C) quá thấp. Ngưỡng cho phép: >= ${stage.tempMin}°C (${stage.name})`);
@@ -114,6 +149,16 @@ export class SensorService {
     }
     if (stage.lightMax !== null && data.lux > stage.lightMax) {
       this.logger.warn(`[CẢNH BÁO] Cường độ sáng (${data.lux} lux) cao. Cần <= ${stage.lightMax} lux (${stage.name})`);
+    }
+
+    // --- OVERRIDE LOGIC DỰA TRÊN THỜI TIẾT ---
+    if (blockPumpDueToWeather && soilMoisture > 15) {
+      this.logger.log(`[OVERRIDE] Bơm bị vô hiệu hóa vì dự báo có mưa, dù các chỉ số khác có thể yêu cầu bật bơm.`);
+      shouldTurnOnPump = false;
+    } else if (blockPumpDueToWeather && soilMoisture <= 15) {
+      // Cơ chế an toàn (Fail-safe): Đất đã QUÁ KHÔ (<15%), không thể chờ mưa được nữa
+      this.logger.warn(`[EMERGENCY] Độ ẩm đất QUÁ THẤP (${soilMoisture.toFixed(1)}%), bỏ qua dự báo thời tiết và tiến hành bật bơm khẩn cấp cứu cây!`);
+      shouldTurnOnPump = true;
     }
 
     // Auto-trigger pump if conditions meet
