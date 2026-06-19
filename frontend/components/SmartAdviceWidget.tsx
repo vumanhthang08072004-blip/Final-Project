@@ -26,13 +26,21 @@ export default function SmartAdviceWidget() {
            return dDate <= next3Days && day.rainVolume > 5; // e.g. more than 5mm rain
         });
 
+        const upcomingHotDays = weatherData.filter((day: any) => {
+           const dDate = new Date(day.date);
+           return dDate <= next3Days && day.avgTemp > 35 && day.rainProbability < 20;
+        });
+
         if (upcomingRainDays.length > 0) {
           const daysUntilRain = Math.max(1, Math.round((new Date(upcomingRainDays[0].date).getTime() - today.getTime()) / (1000 * 3600 * 24)));
           setRainRisk(true);
-          setAdvice(`Dự kiến trong khoản ${daysUntilRain} ngày tới trời có mưa tại Nhật Tân, hệ thống tự động đã tính toán độ ẩm đất dự kiến tăng nhanh. Tạm dừng hệ thống tưới tự động để tránh ngập úng gốc Đào.`);
+          setAdvice(`Dự kiến trong khoảng ${daysUntilRain} ngày tới trời có mưa to tại Nhật Tân, hệ thống tự động đã tính toán độ ẩm đất dự kiến tăng nhanh. Tạm dừng hệ thống tưới tự động để tránh ngập úng gốc cây.`);
+        } else if (upcomingHotDays.length > 0) {
+          setRainRisk(false);
+          setAdvice(`Hôm nay trời nắng gắt và rất oi nóng (Nhiệt độ dự báo: ${upcomingHotDays[0].avgTemp}°C). Bà con nên có phương án tưới bù nước sớm để cây tránh mất nước.`);
         } else {
           setRainRisk(false);
-          setAdvice('Dự báo thời tiết những ngày tới khô ráo. Hệ thống tưới tiêu tự động sẽ được kích hoạt theo đúng lịch trình duy trì độ ẩm 40-50% cho đất thịt.');
+          setAdvice('Dự báo thời tiết những ngày tới khá ổn định. Hệ thống tưới tự động sẽ kích hoạt theo đúng ngưỡng độ ẩm tiêu chuẩn của giai đoạn sinh trưởng.');
         }
       } catch (err) {
         console.error(err);
