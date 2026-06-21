@@ -37,6 +37,32 @@ export class PredictionService {
   async predictFutureMoisture() {
     this.logger.debug('Running LSTM-based soil moisture prediction (Hourly Overlap)');
 
+    // 0. Verify if ML Service is online before executing (with retry to wake up Render free tier)
+    let isHealthy = false;
+    const maxRetries = 6;
+    const delayMs = 10000; // 10 seconds
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await firstValueFrom(this.httpService.get(`${this.mlServiceUrl}/health`));
+        isHealthy = true;
+        this.logger.log(`ML Service is online and healthy (Attempt ${attempt})`);
+        break;
+      } catch (err) {
+        this.logger.warn(
+          `ML Service health check failed on attempt ${attempt}/${maxRetries}. Service might be waking up. Retrying in ${delayMs / 1000}s...`
+        );
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+      }
+    }
+
+    if (!isHealthy) {
+      this.logger.error(`ML Service at ${this.mlServiceUrl} failed to respond after ${maxRetries} attempts. Aborting.`);
+      throw new Error(`ML Service is offline or unreachable.`);
+    }
+
     // 1. Get 160 raw sensor readings (~40 hours of 15-minute interval data)
     const rawSensors = await this.prisma.sensorData.findMany({
       orderBy: { timestamp: 'desc' },
@@ -84,7 +110,8 @@ export class PredictionService {
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`Failed to generate past prediction at index ${i}: ${message}`);
+        this.logger.error(`Failed to generate past prediction at index ${i}: ${message}`);
+        throw new Error(`Failed to generate past prediction at index ${i}: ${message}`);
       }
     }
 
@@ -127,7 +154,8 @@ export class PredictionService {
         lastPredicted = response.data.predicted_soil_moisture;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`ML service call failed at future step ${i + 1}. Error: ${message}`);
+        this.logger.error(`ML service call failed at future step ${i + 1}: ${message}`);
+        throw new Error(`ML service call failed at future step ${i + 1}: ${message}`);
       }
 
       // Confidence drops as we predict further into the future
