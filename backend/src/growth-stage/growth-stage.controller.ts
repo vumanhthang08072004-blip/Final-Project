@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { GrowthStageService } from './growth-stage.service';
 
-@Controller('growth-stages')
+@Controller('api/growth-stages')
 export class GrowthStageController {
-  constructor(private readonly growthStageService: GrowthStageService) {}
+  constructor(private readonly growthStageService: GrowthStageService) { }
 
   @Get()
   getAll() {

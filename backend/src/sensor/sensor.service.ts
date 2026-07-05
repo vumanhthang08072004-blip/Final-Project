@@ -93,6 +93,7 @@ export class SensorService {
   private async evaluateGrowthStageWarnings(data: CreateSensorDataDto, stage: any, soilMoisture: number) {
     let shouldTurnOnPump = false;
     let blockPumpDueToWeather = false;
+    let forceOffDueToHighMoisture = false;
 
     // --- SMART ADVICE: KIỂM TRA DỰ BÁO THỜI TIẾT ---
     const now = new Date();
@@ -128,6 +129,7 @@ export class SensorService {
     }
     // ------------------------------------------------
 
+    // --- KIỂM TRA NGƯỠNG NHIỆT ĐỘ ---
     if (stage.tempMin !== null && data.temp < stage.tempMin) {
       this.logger.warn(`[CẢNH BÁO] Nhiệt độ (${data.temp}°C) quá thấp. Ngưỡng cho phép: >= ${stage.tempMin}°C (${stage.name})`);
     }
@@ -136,14 +138,17 @@ export class SensorService {
       shouldTurnOnPump = true;
     }
 
+    // --- KIỂM TRA NGƯỠNG ĐỘ ẨM ĐẤT ---
     if (stage.moistureMin !== null && soilMoisture < stage.moistureMin) {
       this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${soilMoisture.toFixed(1)}%) dưới mức yêu cầu. Ngưỡng: >= ${stage.moistureMin}% (${stage.name})`);
       shouldTurnOnPump = true;
     }
     if (stage.moistureMax !== null && soilMoisture > stage.moistureMax) {
-      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${soilMoisture.toFixed(1)}%) qúa cao. Ngưỡng: <= ${stage.moistureMax}% (${stage.name})`);
+      this.logger.warn(`[CẢNH BÁO] Độ ẩm đất (${soilMoisture.toFixed(1)}%) quá cao. Ngưỡng: <= ${stage.moistureMax}% (${stage.name}). Tắt bơm để tránh ngập úng.`);
+      forceOffDueToHighMoisture = true;
     }
 
+    // --- KIỂM TRA NGƯỠNG ÁNH SÁNG ---
     if (stage.lightMin !== null && data.lux < stage.lightMin) {
       this.logger.warn(`[CẢNH BÁO] Cường độ sáng (${data.lux} lux) thấp. Cần >= ${stage.lightMin} lux (${stage.name})`);
     }
@@ -151,8 +156,14 @@ export class SensorService {
       this.logger.warn(`[CẢNH BÁO] Cường độ sáng (${data.lux} lux) cao. Cần <= ${stage.lightMax} lux (${stage.name})`);
     }
 
-    // --- OVERRIDE LOGIC DỰA TRÊN THỜI TIẾT ---
-    if (blockPumpDueToWeather && soilMoisture > 15) {
+    // --- ƯU TIÊN XỬ LÝ BƠM ---
+    // Ưu tiên 1 (Cao nhất): Đất quá ướt → LUÔN TẮT BƠM, bất kể nhiệt độ hay điều kiện khác
+    if (forceOffDueToHighMoisture) {
+      this.logger.log(`[OVERRIDE] Đất quá ướt (${soilMoisture.toFixed(1)}% > ${stage.moistureMax}%). Tắt bơm để tránh ngập úng gốc cây.`);
+      shouldTurnOnPump = false;
+    }
+    // Ưu tiên 2: Dự báo mưa to → chặn bơm (trừ trường hợp khẩn cấp đất quá khô)
+    else if (blockPumpDueToWeather && soilMoisture > 15) {
       this.logger.log(`[OVERRIDE] Bơm bị vô hiệu hóa vì dự báo có mưa, dù các chỉ số khác có thể yêu cầu bật bơm.`);
       shouldTurnOnPump = false;
     } else if (blockPumpDueToWeather && soilMoisture <= 15) {
@@ -160,6 +171,7 @@ export class SensorService {
       this.logger.warn(`[EMERGENCY] Độ ẩm đất QUÁ THẤP (${soilMoisture.toFixed(1)}%), bỏ qua dự báo thời tiết và tiến hành bật bơm khẩn cấp cứu cây!`);
       shouldTurnOnPump = true;
     }
+    // Ưu tiên 3: Nhiệt độ quá cao hoặc đất quá khô → bật bơm (đã set ở trên)
 
     // Auto-trigger pump if conditions meet
     this.pumpService.autoTriggerPump(shouldTurnOnPump)
