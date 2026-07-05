@@ -184,5 +184,28 @@ export class PredictionService {
       orderBy: { forecastDate: 'asc' },
     });
   }
+
+  /**
+   * Temporary cleanup — xóa predictions và sensor data trước ngày chỉ định.
+   */
+  async cleanupOldData(before: Date) {
+    const deletedPredictions = await this.prisma.predictions.deleteMany({
+      where: { forecastDate: { lt: before } },
+    });
+
+    const deletedSensorData = await this.prisma.sensorData.deleteMany({
+      where: { timestamp: { lt: before } },
+    });
+
+    this.logger.log(
+      `Cleanup: Deleted ${deletedPredictions.count} predictions and ${deletedSensorData.count} sensor records before ${before.toISOString()}`,
+    );
+
+    return {
+      deletedPredictions: deletedPredictions.count,
+      deletedSensorData: deletedSensorData.count,
+      before: before.toISOString(),
+    };
+  }
 }
 
