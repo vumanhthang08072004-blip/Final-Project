@@ -59,8 +59,8 @@ export class PredictionService {
     }
 
     if (!isHealthy) {
-      this.logger.error(`ML Service at ${this.mlServiceUrl} failed to respond after ${maxRetries} attempts. Aborting.`);
-      throw new Error(`ML Service is offline or unreachable.`);
+      this.logger.error(`ML Service at ${this.mlServiceUrl} failed to respond after ${maxRetries} attempts. Aborting prediction (non-fatal).`);
+      return; // Thoát an toàn thay vì throw crash backend
     }
 
     // 1. Get 160 raw sensor readings (~40 hours of 15-minute interval data)
@@ -111,7 +111,7 @@ export class PredictionService {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to generate past prediction at index ${i}: ${message}`);
-        throw new Error(`Failed to generate past prediction at index ${i}: ${message}`);
+        return; // Thoát an toàn thay vì throw crash backend
       }
     }
 
@@ -155,7 +155,7 @@ export class PredictionService {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(`ML service call failed at future step ${i + 1}: ${message}`);
-        throw new Error(`ML service call failed at future step ${i + 1}: ${message}`);
+        return; // Thoát an toàn thay vì throw crash backend
       }
 
       // Confidence drops as we predict further into the future

@@ -73,7 +73,9 @@ export class SensorService {
     });
 
     // Optionally trigger a real-time recalculation of the moisture prediction
-    this.predictionService.predictFutureMoisture();
+    // Bắt lỗi để tránh unhandled promise rejection crash toàn bộ backend
+    this.predictionService.predictFutureMoisture()
+      .catch(err => this.logger.error('Prediction failed (non-fatal): ' + err.message));
 
     // Check against active Growth Stage for warnings
     try {
