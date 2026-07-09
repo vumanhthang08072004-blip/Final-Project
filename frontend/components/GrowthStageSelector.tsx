@@ -30,14 +30,17 @@ export default function GrowthStageSelector() {
 
   const fetchStages = async () => {
     try {
-      const res = await fetch(`${API_URL}/growth-stages`);
+      const res = await fetch(`${API_URL}/api/growth-stages`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const data = await res.json();
       if (Array.isArray(data)) {
         setStages(data);
         const active = data.find((s: GrowthStage) => s.isActive);
         if (active) setActiveStageId(active.id);
       } else {
-        console.warn('Expected array from /growth-stages, got:', data);
+        console.warn('Expected array from /api/growth-stages, got:', data);
         setStages([]);
       }
     } catch (err) {
@@ -54,12 +57,16 @@ export default function GrowthStageSelector() {
   const handleActivate = async (id: string) => {
     try {
       setLoading(true);
-      await fetch(`${API_URL}/growth-stages/${id}/activate`, {
+      const res = await fetch(`${API_URL}/api/growth-stages/${id}/activate`, {
         method: 'PUT',
       });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       await fetchStages();
     } catch (err) {
       console.error('Failed to activate stage', err);
+      alert('Kích hoạt chế độ thất bại!');
       setLoading(false);
     }
   };

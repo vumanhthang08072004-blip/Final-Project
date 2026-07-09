@@ -49,7 +49,10 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
 
   const fetchStages = async () => {
     try {
-      const res = await fetch(`${API_URL}/growth-stages`);
+      const res = await fetch(`${API_URL}/api/growth-stages`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const data = await res.json();
       setStages(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -66,7 +69,10 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc chắn muốn xoá chế độ này?')) return;
     try {
-      await fetch(`${API_URL}/growth-stages/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/growth-stages/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       fetchStages();
       onRefresh();
     } catch (err) {
@@ -94,24 +100,32 @@ export default function GrowthStageManagerModal({ isOpen, onClose, onRefresh }: 
     };
 
     try {
+      let res;
       if (editingStage.id) {
         // Update
-        await fetch(`${API_URL}/growth-stages/${editingStage.id}`, {
+        res = await fetch(`${API_URL}/api/growth-stages/${editingStage.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
         // Create
-        await fetch(`${API_URL}/growth-stages`, {
+        res = await fetch(`${API_URL}/api/growth-stages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       }
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP error! status: ${res.status}, body: ${errorText}`);
+      }
+
       setEditingStage(null);
       fetchStages();
       onRefresh();
+      alert('Lưu thành công!');
     } catch (err) {
       console.error(err);
       alert('Lưu thất bại!');
