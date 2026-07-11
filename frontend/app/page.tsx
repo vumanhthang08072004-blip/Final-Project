@@ -63,15 +63,17 @@ export default function DashboardPage() {
         
         // Push actual past records (Aggregate by Hour to reduce noise but retain line shape)
         if (historyData && historyData.length > 0) {
-          const aggregates: Record<string, { moistureSum: number; humiditySum: number; count: number }> = {};
+          const aggregates: Record<string, { moistureSum: number; humiditySum: number; count: number; timestamp: number }> = {};
           
           historyData.forEach((record: any) => {
             // Group by DD/MM HH:00
             const dateObj = new Date(record.timestamp);
-            const keyStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + dateObj.getHours().toString().padStart(2, '0') + ':00';
+            const baseDate = new Date(dateObj);
+            baseDate.setMinutes(0, 0, 0);
+            const keyStr = baseDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + baseDate.getHours().toString().padStart(2, '0') + ':00';
             
             if (!aggregates[keyStr]) {
-              aggregates[keyStr] = { moistureSum: 0, humiditySum: 0, count: 0 };
+              aggregates[keyStr] = { moistureSum: 0, humiditySum: 0, count: 0, timestamp: baseDate.getTime() };
             }
             aggregates[keyStr].moistureSum += record.soilMoisture;
             aggregates[keyStr].humiditySum += record.airHumidity || 0;
@@ -81,6 +83,7 @@ export default function DashboardPage() {
           for (const [key, data] of Object.entries(aggregates)) {
             mappedTrends.push({
               time: key,
+              timestamp: data.timestamp,
               soilMoisture: Number((data.moistureSum / data.count).toFixed(1)),
               airHumidity: Number((data.humiditySum / data.count).toFixed(1)),
               predictedMoisture: null,
@@ -92,8 +95,10 @@ export default function DashboardPage() {
         if (predictionData && predictionData.length > 0) {
           predictionData.forEach((pred: any) => {
             const dateObj = new Date(pred.forecastDate);
-            const timeStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + 
-                            dateObj.getHours().toString().padStart(2, '0') + ':00';
+            const baseDate = new Date(dateObj);
+            baseDate.setMinutes(0, 0, 0);
+            const timeStr = baseDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + 
+                            baseDate.getHours().toString().padStart(2, '0') + ':00';
             
             const existing = mappedTrends.find(t => t.time === timeStr);
             if (existing) {
@@ -101,6 +106,7 @@ export default function DashboardPage() {
             } else {
               mappedTrends.push({
                 time: timeStr,
+                timestamp: baseDate.getTime(),
                 soilMoisture: null,
                 airHumidity: null,
                 predictedMoisture: pred.predictedValue,
@@ -109,16 +115,8 @@ export default function DashboardPage() {
           });
         }
 
-        // Sort chronologically by parsing the custom time string format
-        mappedTrends.sort((a, b) => {
-          const parseDate = (str: string) => {
-            const [datePart, timePart] = str.split(' ');
-            const [day, month] = datePart.split('/');
-            const [hour] = timePart.split(':');
-            return new Date(new Date().getFullYear(), parseInt(month) - 1, parseInt(day), parseInt(hour));
-          };
-          return parseDate(a.time).getTime() - parseDate(b.time).getTime();
-        });
+        // Sort chronologically by numerical timestamp
+        mappedTrends.sort((a, b) => a.timestamp - b.timestamp);
 
         setHistoricalTrends(mappedTrends);
       } catch (error) {
