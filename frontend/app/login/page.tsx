@@ -96,7 +96,7 @@ export default function LoginPage() {
               HỆ THỐNG GIÁM SÁT
             </h1>
             <p className="text-emerald-300/80 text-sm font-medium mt-1.5 tracking-wide">
-              VƯỜN ĐÀO NHẬT TÂN
+              MÔI TRƯỜNG CANH TÁC ĐÀO NHẬT TÂN
             </p>
             <div className="w-12 h-1 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full mx-auto mt-4"></div>
           </div>

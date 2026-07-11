@@ -105,7 +105,7 @@ export default function MonitoringCards({ data }: MonitoringCardsProps) {
       >
         <Activity className="h-8 w-8 mr-3" />
         <div>
-          <h2 className="text-xl font-bold">Tình trạng Cây Đào</h2>
+          <h2 className="text-xl font-bold">Tình trạng môi trường canh tác hiện tại</h2>
           <p className="font-medium">{healthStatus}</p>
         </div>
       </div>

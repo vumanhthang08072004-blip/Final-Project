@@ -142,7 +142,7 @@ export default function DashboardPage() {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-emerald-700 text-white p-6 rounded-2xl shadow-lg">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight">
-              HỆ THỐNG GIÁM SÁT CHẤT LƯỢNG VƯỜN ĐÀO NHẬT TÂN
+              HỆ THỐNG GIÁM SÁT MÔI TRƯỜNG CANH TÁC ĐÀO NHẬT TÂN
             </h1>
           </div>
           <div className="mt-4 md:mt-0 flex items-center gap-3">
